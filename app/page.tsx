@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { StatusCard } from '@/components/status-card'
@@ -32,8 +32,12 @@ import {
 } from 'lucide-react'
 
 export default function FundingMonitorPage() {
-  const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+
+  useEffect(() => {
+    setLastUpdated(new Date())
+  }, [])
 
   const openPrograms = fundingPrograms.filter((p) => p.status === 'open')
   const upcomingPrograms = fundingPrograms.filter((p) => p.status === 'upcoming')
@@ -82,9 +86,11 @@ export default function FundingMonitorPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden lg:block">
-                最後更新: {lastUpdated.toLocaleString('zh-HK')}
-              </span>
+              {lastUpdated && (
+                <span className="text-xs text-muted-foreground hidden lg:block">
+                  最後更新: {lastUpdated.toLocaleString('zh-HK')}
+                </span>
+              )}
               <div className="hidden sm:flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -195,7 +201,7 @@ export default function FundingMonitorPage() {
                   </h3>
                   <div className="space-y-3 text-sm text-muted-foreground">
                     <p>
-                      本系統自動監測以下類別的資助來源，並在偵測到新的資助機會時發出通知：
+                      本系統自動監���以下類別的資助來源，並在偵測到新的資助機會時發出通知：
                     </p>
                     <ul className="list-disc list-inside space-y-1.5">
                       <li>政府部門官方網站</li>
