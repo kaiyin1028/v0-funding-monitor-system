@@ -4,6 +4,8 @@ import { useState, useCallback, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { StatusCard } from '@/components/status-card'
+import { HeroBanner } from '@/components/hero-banner'
+import { FeatureCards } from '@/components/feature-cards'
 import { SourceMonitor } from '@/components/source-monitor'
 import { FundingTable } from '@/components/funding-table'
 import { DeadlineTimeline } from '@/components/deadline-timeline'
@@ -70,10 +72,12 @@ export default function FundingMonitorPage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {/* Colorful top bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 via-orange-500 to-purple-500" />
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-teal-500 text-white shadow-md">
                 <Database className="h-5 w-5" />
               </div>
               <div className="flex flex-col">
@@ -133,6 +137,9 @@ export default function FundingMonitorPage() {
       </header>
 
       <main className="container mx-auto px-4 py-6 lg:px-8">
+        {/* Hero Banner */}
+        <HeroBanner />
+        
         {/* Stats Overview */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
           <StatusCard
@@ -142,26 +149,33 @@ export default function FundingMonitorPage() {
             icon={<CheckCircle2 className="h-5 w-5" />}
             trend="up"
             trendValue="較上月增加2個"
+            colorScheme="green"
           />
           <StatusCard
             title="即將開放申請"
             value={upcomingPrograms.length}
             subtitle="個資助計劃"
             icon={<Clock className="h-5 w-5" />}
+            colorScheme="orange"
           />
           <StatusCard
             title="高度相關項目"
             value={highRelevancePrograms.length}
             subtitle="個優先建議申請"
             icon={<TrendingUp className="h-5 w-5" />}
+            colorScheme="purple"
           />
           <StatusCard
             title="監測來源"
             value={`${onlineSources.length}/${fundingSources.length}`}
             subtitle="來源正常運作"
             icon={<Bell className="h-5 w-5" />}
+            colorScheme="teal"
           />
         </div>
+
+        {/* Feature Cards with Images */}
+        <FeatureCards />
 
         {/* Main Content */}
         <Tabs defaultValue="database" className="space-y-4">

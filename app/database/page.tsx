@@ -240,22 +240,22 @@ export default function DatabasePage() {
   const getStatusBadgeClass = (status: FundingProgram['status']) => {
     switch (status) {
       case 'open':
-        return 'bg-success/20 text-success border-success/30'
+        return 'bg-green-100 text-green-700 border-green-300'
       case 'upcoming':
-        return 'bg-warning/20 text-warning border-warning/30'
+        return 'bg-orange-100 text-orange-700 border-orange-300'
       case 'closed':
-        return 'bg-muted text-muted-foreground border-muted'
+        return 'bg-gray-100 text-gray-500 border-gray-300'
     }
   }
 
   const getRelevanceBadgeClass = (relevance: FundingProgram['relevance']) => {
     switch (relevance) {
       case 'high':
-        return 'bg-primary/20 text-primary border-primary/30'
+        return 'bg-purple-100 text-purple-700 border-purple-300'
       case 'medium':
-        return 'bg-info/20 text-info border-info/30'
+        return 'bg-blue-100 text-blue-700 border-blue-300'
       case 'low':
-        return 'bg-muted text-muted-foreground border-muted'
+        return 'bg-gray-100 text-gray-500 border-gray-300'
     }
   }
 
@@ -297,6 +297,7 @@ export default function DatabasePage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 via-orange-500 to-purple-500" />
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex h-14 items-center justify-between">
             <div className="flex items-center gap-4">
@@ -308,7 +309,9 @@ export default function DatabasePage() {
               </Link>
               <div className="h-6 w-px bg-border" />
               <div className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-blue-500 text-white shadow-sm">
+                  <FileSpreadsheet className="h-4 w-4" />
+                </div>
                 <h1 className="text-lg font-semibold">資助計劃數據庫</h1>
               </div>
             </div>
@@ -462,7 +465,7 @@ export default function DatabasePage() {
                   }
                 >
                   <SelectTrigger className="bg-muted/30 border-border/50">
-                    <SelectValue placeholder="所有來源" />
+                    <SelectValue placeholder="���有來源" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">所有來源</SelectItem>
