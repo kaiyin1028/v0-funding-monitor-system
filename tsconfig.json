@@ -23,9 +23,12 @@
       }
     ],
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@/src/*": ["./src/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/hooks/*": ["./src/hooks/*"],
+      "@/mocks/*": ["./src/mocks/*"],
+      "@/types/*": ["./src/types/*"]
     }
   },
   "include": [

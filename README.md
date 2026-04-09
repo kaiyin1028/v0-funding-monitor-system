@@ -69,9 +69,23 @@ pnpm lint         # ESLint
 ```
 /
 ├── app/                          # Next.js App Router pages
+│   ├── api/                      # API routes
+│   │   ├── auth/                 # Authentication endpoints
+│   │   │   ├── login/route.ts
+│   │   │   ├── logout/route.ts
+│   │   │   └── me/route.ts
+│   │   ├── funding/              # Funding endpoints
+│   │   │   ├── programs/route.ts
+│   │   │   ├── sources/route.ts
+│   │   │   └── stats/route.ts
+│   │   ├── user/                 # User endpoints
+│   │   │   └── favorites/route.ts
+│   │   └── monitoring/           # Monitoring endpoints
+│   │       └── check/route.ts
+│   ├── login/page.tsx            # Login page
+│   ├── database/page.tsx         # Database page
 │   ├── layout.tsx                # Root layout
 │   ├── page.tsx                  # Dashboard page
-│   ├── database/page.tsx         # Database page
 │   └── globals.css               # Global styles
 │
 ├── components/                   # UI components
