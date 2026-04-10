@@ -32,7 +32,8 @@ class ApiClient {
 
   constructor() {
     this.baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api'
-    this.useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === 'true'
+    // Default to mock mode unless explicitly set to 'false'
+    this.useMocks = process.env.NEXT_PUBLIC_USE_MOCKS !== 'false'
   }
 
   /**

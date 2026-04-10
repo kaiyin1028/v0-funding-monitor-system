@@ -46,15 +46,41 @@ import {
   Bookmark,
   Eye,
 } from 'lucide-react'
-import {
-  fundingPrograms,
-  fundingSources,
-  categoryLabels,
-  statusLabels,
-  relevanceLabels,
-  FundingProgram,
-} from '@/lib/funding-data'
 import { cn } from '@/lib/utils'
+import { LoadingState } from '@/src/components/ui/loading-state'
+import { ErrorState } from '@/src/components/ui/error-state'
+import { EmptyState } from '@/src/components/ui/empty-state'
+import {
+  useFundingPrograms,
+  useFundingSources,
+  useToggleFavorite,
+} from '@/src/hooks/use-funding'
+import { fundingService } from '@/src/services/funding.service'
+import type { FundingProgram } from '@/src/types'
+
+// Labels for display
+const categoryLabels: Record<string, string> = {
+  education: '教育',
+  innovation: '創新科技',
+  youth: '青年發展',
+  environment: '環境保育',
+  social: '社會服務',
+  culture: '文化藝術',
+  civic: '公民教育',
+  general: '綜合',
+}
+
+const statusLabels: Record<string, string> = {
+  open: '正在接受申請',
+  upcoming: '即將開放',
+  closed: '已截止',
+}
+
+const relevanceLabels: Record<string, string> = {
+  high: '高度相關',
+  medium: '中度相關',
+  low: '低度相關',
+}
 
 type SortField = 'name' | 'deadline' | 'maxAmount' | 'relevance' | 'priority'
 type SortDirection = 'asc' | 'desc'
@@ -67,55 +93,64 @@ export default function DatabasePage() {
   const [selectedSources, setSelectedSources] = useState<string[]>([])
   const [sortField, setSortField] = useState<SortField>('priority')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set())
   const [showBookmarkedOnly, setShowBookmarkedOnly] = useState(false)
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
 
-  const toggleBookmark = useCallback((id: string) => {
-    setBookmarkedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
+  // Fetch data from services
+  const {
+    programs,
+    isLoading: programsLoading,
+    error: programsError,
+    mutate: mutatePrograms,
+  } = useFundingPrograms()
+
+  const {
+    sources,
+    isLoading: sourcesLoading,
+    error: sourcesError,
+  } = useFundingSources()
+
+  const { toggleFavorite, isToggling } = useToggleFavorite()
+
+  // Handle favorite toggle
+  const handleToggleFavorite = useCallback(
+    async (id: string, currentState: boolean) => {
+      try {
+        await toggleFavorite(id, !currentState)
+        await mutatePrograms()
+      } catch (error) {
+        console.error('Failed to toggle favorite:', error)
       }
-      return next
-    })
-  }, [])
+    },
+    [toggleFavorite, mutatePrograms]
+  )
 
+  // Filter and sort programs
   const filteredPrograms = useMemo(() => {
-    return fundingPrograms
+    return programs
       .filter((program) => {
-        // Search filter
         const matchesSearch =
           search === '' ||
           program.name.toLowerCase().includes(search.toLowerCase()) ||
           program.organization.toLowerCase().includes(search.toLowerCase()) ||
           program.description.toLowerCase().includes(search.toLowerCase())
 
-        // Category filter
         const matchesCategory =
           selectedCategories.length === 0 ||
           selectedCategories.includes(program.category)
 
-        // Status filter
         const matchesStatus =
           selectedStatuses.length === 0 ||
           selectedStatuses.includes(program.status)
 
-        // Relevance filter
         const matchesRelevance =
           selectedRelevance.length === 0 ||
           selectedRelevance.includes(program.relevance)
 
-        // Source filter
         const matchesSource =
           selectedSources.length === 0 ||
           selectedSources.includes(program.sourceId)
 
-        // Bookmarked filter
-        const matchesBookmark =
-          !showBookmarkedOnly || bookmarkedIds.has(program.id)
+        const matchesBookmark = !showBookmarkedOnly || program.isFavorite
 
         return (
           matchesSearch &&
@@ -144,7 +179,8 @@ export default function DatabasePage() {
             break
           case 'relevance':
             const relevanceOrder = { high: 1, medium: 2, low: 3 }
-            comparison = relevanceOrder[a.relevance] - relevanceOrder[b.relevance]
+            comparison =
+              relevanceOrder[a.relevance] - relevanceOrder[b.relevance]
             break
           case 'priority':
             comparison = a.priority - b.priority
@@ -156,13 +192,13 @@ export default function DatabasePage() {
         return sortDirection === 'asc' ? comparison : -comparison
       })
   }, [
+    programs,
     search,
     selectedCategories,
     selectedStatuses,
     selectedRelevance,
     selectedSources,
     showBookmarkedOnly,
-    bookmarkedIds,
     sortField,
     sortDirection,
   ])
@@ -193,51 +229,19 @@ export default function DatabasePage() {
     selectedSources.length > 0 ||
     showBookmarkedOnly
 
-  const handleExport = useCallback(() => {
-    const headers = [
-      '計劃名稱',
-      '資助機構',
-      '類別',
-      '最高資助金額',
-      '截止日期',
-      '申請狀態',
-      '相關程度',
-      '申請期間',
-      '計劃簡介',
-      '申請要求',
-      '網站連結',
-    ]
+  const handleExport = useCallback(async () => {
+    try {
+      const blob = await fundingService.exportProgramsToCSV()
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.download = `香港教育資助計劃數據庫_${new Date().toISOString().split('T')[0]}.csv`
+      link.click()
+    } catch (error) {
+      console.error('Export failed:', error)
+    }
+  }, [])
 
-    const rows = filteredPrograms.map((p) => [
-      p.name,
-      p.organization,
-      categoryLabels[p.category],
-      p.maxAmount,
-      p.deadline,
-      statusLabels[p.status],
-      relevanceLabels[p.relevance],
-      p.applicationPeriod,
-      p.description,
-      p.requirements.join('; '),
-      p.url,
-    ])
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n')
-
-    const BOM = '\uFEFF'
-    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `香港教育資助計劃數據庫_${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
-  }, [filteredPrograms])
-
-  const getStatusBadgeClass = (status: FundingProgram['status']) => {
+  const getStatusBadgeClass = (status: string) => {
     switch (status) {
       case 'open':
         return 'bg-green-100 text-green-700 border-green-300'
@@ -245,10 +249,12 @@ export default function DatabasePage() {
         return 'bg-orange-100 text-orange-700 border-orange-300'
       case 'closed':
         return 'bg-gray-100 text-gray-500 border-gray-300'
+      default:
+        return ''
     }
   }
 
-  const getRelevanceBadgeClass = (relevance: FundingProgram['relevance']) => {
+  const getRelevanceBadgeClass = (relevance: string) => {
     switch (relevance) {
       case 'high':
         return 'bg-purple-100 text-purple-700 border-purple-300'
@@ -256,6 +262,8 @@ export default function DatabasePage() {
         return 'bg-blue-100 text-blue-700 border-blue-300'
       case 'low':
         return 'bg-gray-100 text-gray-500 border-gray-300'
+      default:
+        return ''
     }
   }
 
@@ -292,6 +300,66 @@ export default function DatabasePage() {
       )}
     </button>
   )
+
+  // Loading state
+  if (programsLoading && programs.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
+          <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 via-orange-500 to-purple-500" />
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="flex h-14 items-center gap-4">
+              <Link href="/">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  返回儀表板
+                </Button>
+              </Link>
+              <div className="h-6 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-500 to-blue-500 text-white shadow-sm">
+                  <FileSpreadsheet className="h-4 w-4" />
+                </div>
+                <h1 className="text-lg font-semibold">資助計劃數據庫</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-6 lg:px-8">
+          <LoadingState variant="table" rows={8} />
+        </main>
+      </div>
+    )
+  }
+
+  // Error state
+  if (programsError && programs.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur">
+          <div className="h-1 w-full bg-gradient-to-r from-blue-500 via-teal-500 via-green-500 via-orange-500 to-purple-500" />
+          <div className="container mx-auto px-4 lg:px-8">
+            <div className="flex h-14 items-center gap-4">
+              <Link href="/">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  返回儀表板
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </header>
+        <main className="container mx-auto px-4 py-6 lg:px-8">
+          <ErrorState
+            title="載入資助計劃失敗"
+            message="無法從伺服器載入資助計劃數據"
+            error={programsError}
+            onRetry={() => mutatePrograms()}
+          />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -404,7 +472,7 @@ export default function DatabasePage() {
                       className={cn(
                         'cursor-pointer transition-colors',
                         selectedStatuses.includes(key)
-                          ? getStatusBadgeClass(key as FundingProgram['status'])
+                          ? getStatusBadgeClass(key)
                           : 'hover:bg-muted'
                       )}
                       onClick={() =>
@@ -434,9 +502,7 @@ export default function DatabasePage() {
                       className={cn(
                         'cursor-pointer transition-colors',
                         selectedRelevance.includes(key)
-                          ? getRelevanceBadgeClass(
-                              key as FundingProgram['relevance']
-                            )
+                          ? getRelevanceBadgeClass(key)
                           : 'hover:bg-muted'
                       )}
                       onClick={() =>
@@ -465,11 +531,11 @@ export default function DatabasePage() {
                   }
                 >
                   <SelectTrigger className="bg-muted/30 border-border/50">
-                    <SelectValue placeholder="���有來源" />
+                    <SelectValue placeholder="所有來源" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">所有來源</SelectItem>
-                    {fundingSources.map((source) => (
+                    {sources.map((source) => (
                       <SelectItem key={source.id} value={source.id}>
                         {source.name}
                       </SelectItem>
@@ -490,9 +556,7 @@ export default function DatabasePage() {
                 />
                 <span className="text-sm">只顯示已收藏</span>
               </label>
-              <span className="text-sm text-muted-foreground">
-                |
-              </span>
+              <span className="text-sm text-muted-foreground">|</span>
               <span className="text-sm text-muted-foreground">
                 找到 {filteredPrograms.length} 個計劃
               </span>
@@ -501,201 +565,217 @@ export default function DatabasePage() {
         </Card>
 
         {/* Results Table */}
-        <div className="rounded-lg border border-border/50 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="w-10" />
-                <TableHead className="min-w-[250px]">
-                  <SortButton field="name">計劃名稱</SortButton>
-                </TableHead>
-                <TableHead>資助機構</TableHead>
-                <TableHead>類別</TableHead>
-                <TableHead>最高資助</TableHead>
-                <TableHead>
-                  <SortButton field="deadline">截止日期</SortButton>
-                </TableHead>
-                <TableHead>狀態</TableHead>
-                <TableHead>
-                  <SortButton field="relevance">相關性</SortButton>
-                </TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPrograms.map((program) => (
-                <TableRow key={program.id} className="group hover:bg-muted/30">
-                  <TableCell>
-                    <button
-                      onClick={() => toggleBookmark(program.id)}
-                      className="p-1 rounded hover:bg-muted transition-colors"
-                    >
-                      <Bookmark
-                        className={cn(
-                          'h-4 w-4',
-                          bookmarkedIds.has(program.id)
-                            ? 'fill-primary text-primary'
-                            : 'text-muted-foreground'
+        {filteredPrograms.length === 0 ? (
+          <EmptyState
+            type={hasActiveFilters ? 'filter' : 'data'}
+            title={hasActiveFilters ? '無符合條件的結果' : '暫無資助計劃'}
+            message={
+              hasActiveFilters
+                ? '嘗試清除篩選條件或使用其他關鍵字搜尋'
+                : '目前沒有可顯示的資助計劃資料'
+            }
+            action={
+              hasActiveFilters
+                ? { label: '清除篩選條件', onClick: clearFilters }
+                : undefined
+            }
+          />
+        ) : (
+          <div className="rounded-lg border border-border/50 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="w-10" />
+                  <TableHead className="min-w-[250px]">
+                    <SortButton field="name">計劃名稱</SortButton>
+                  </TableHead>
+                  <TableHead>資助機構</TableHead>
+                  <TableHead>類別</TableHead>
+                  <TableHead>最高資助</TableHead>
+                  <TableHead>
+                    <SortButton field="deadline">截止日期</SortButton>
+                  </TableHead>
+                  <TableHead>狀態</TableHead>
+                  <TableHead>
+                    <SortButton field="relevance">相關性</SortButton>
+                  </TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPrograms.map((program) => (
+                  <TableRow
+                    key={program.id}
+                    className="group hover:bg-muted/30"
+                  >
+                    <TableCell>
+                      <button
+                        onClick={() =>
+                          handleToggleFavorite(program.id, program.isFavorite || false)
+                        }
+                        disabled={isToggling}
+                        className="p-1 rounded hover:bg-muted transition-colors"
+                      >
+                        <Bookmark
+                          className={cn(
+                            'h-4 w-4',
+                            program.isFavorite
+                              ? 'fill-primary text-primary'
+                              : 'text-muted-foreground'
+                          )}
+                        />
+                      </button>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-start gap-2">
+                        {program.relevance === 'high' && (
+                          <Star className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                         )}
-                      />
-                    </button>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <div className="flex items-start gap-2">
-                      {program.relevance === 'high' && (
-                        <Star className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                      )}
-                      <span className="line-clamp-2">{program.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm">{program.organization}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {categoryLabels[program.category]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {program.maxAmount}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="text-sm">
-                        {formatDeadline(program.deadline)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn('text-xs', getStatusBadgeClass(program.status))}
-                    >
-                      {statusLabels[program.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'text-xs',
-                        getRelevanceBadgeClass(program.relevance)
-                      )}
-                    >
-                      {relevanceLabels[program.relevance]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 px-2">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2">
-                              {program.relevance === 'high' && (
-                                <Star className="h-5 w-5 text-primary" />
-                              )}
-                              {program.name}
-                            </DialogTitle>
-                            <DialogDescription>
-                              {program.organization}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 mt-4">
-                            <div>
-                              <h4 className="text-sm font-medium mb-2">計劃簡介</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {program.description}
-                              </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                        <span className="line-clamp-2">{program.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm">{program.organization}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs">
+                        {categoryLabels[program.category] || program.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {program.maxAmount}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-sm">
+                          {formatDeadline(program.deadline)}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-xs',
+                          getStatusBadgeClass(program.status)
+                        )}
+                      >
+                        {statusLabels[program.status] || program.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'text-xs',
+                          getRelevanceBadgeClass(program.relevance)
+                        )}
+                      >
+                        {relevanceLabels[program.relevance] || program.relevance}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2">
+                                {program.relevance === 'high' && (
+                                  <Star className="h-5 w-5 text-primary" />
+                                )}
+                                {program.name}
+                              </DialogTitle>
+                              <DialogDescription>
+                                {program.organization}
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="grid gap-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">
+                                    最高資助金額
+                                  </span>
+                                  <span className="font-medium">
+                                    {program.maxAmount}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">
+                                    申請截止日期
+                                  </span>
+                                  <span className="font-medium">
+                                    {formatDeadline(program.deadline)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">
+                                    申請期間
+                                  </span>
+                                  <span className="font-medium">
+                                    {program.applicationPeriod}
+                                  </span>
+                                </div>
+                              </div>
                               <div>
-                                <h4 className="text-sm font-medium mb-1">
-                                  最高資助金額
+                                <h4 className="text-sm font-medium mb-2">
+                                  計劃簡介
                                 </h4>
                                 <p className="text-sm text-muted-foreground">
-                                  {program.maxAmount}
+                                  {program.description}
                                 </p>
                               </div>
-                              <div>
-                                <h4 className="text-sm font-medium mb-1">申請期間</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {program.applicationPeriod}
-                                </p>
-                              </div>
-                            </div>
-                            <div>
-                              <h4 className="text-sm font-medium mb-2">申請要求</h4>
-                              <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
-                                {program.requirements.map((req, i) => (
-                                  <li key={i}>{req}</li>
-                                ))}
-                              </ul>
-                            </div>
-                            <div className="flex gap-2 pt-4">
-                              <Badge
-                                variant="outline"
-                                className={getStatusBadgeClass(program.status)}
-                              >
-                                {statusLabels[program.status]}
-                              </Badge>
-                              <Badge
-                                variant="outline"
-                                className={getRelevanceBadgeClass(program.relevance)}
-                              >
-                                {relevanceLabels[program.relevance]}
-                              </Badge>
-                              <Badge variant="outline">
-                                {categoryLabels[program.category]}
-                              </Badge>
-                            </div>
-                            <div className="flex justify-end pt-2">
-                              <Button asChild>
+                              {program.requirements &&
+                                program.requirements.length > 0 && (
+                                  <div>
+                                    <h4 className="text-sm font-medium mb-2">
+                                      申請要求
+                                    </h4>
+                                    <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                                      {program.requirements.map(
+                                        (req: string, idx: number) => (
+                                          <li key={idx}>{req}</li>
+                                        )
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                              <Button asChild className="w-full">
                                 <a
                                   href={program.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
                                   <ExternalLink className="mr-2 h-4 w-4" />
-                                  前往官網申請
+                                  前往官方網站
                                 </a>
                               </Button>
                             </div>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <a
-                        href={program.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 rounded hover:bg-muted transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                      </a>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {filteredPrograms.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium">沒有找到符合條件的計劃</p>
-            <p className="text-sm mt-1">請嘗試調整篩選條件</p>
-            <Button variant="outline" className="mt-4" onClick={clearFilters}>
-              清除篩選條件
-            </Button>
+                          </DialogContent>
+                        </Dialog>
+                        <Button variant="ghost" size="sm" asChild>
+                          <a
+                            href={program.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </main>

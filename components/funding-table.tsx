@@ -36,12 +36,31 @@ import {
   Building2,
   ArrowUpDown,
 } from 'lucide-react'
-import {
-  FundingProgram,
-  categoryLabels,
-  statusLabels,
-  relevanceLabels,
-} from '@/lib/funding-data'
+import type { FundingProgram } from '@/src/types'
+
+// Labels for display
+const categoryLabels: Record<string, string> = {
+  education: '教育',
+  innovation: '創新科技',
+  youth: '青年發展',
+  environment: '環境保育',
+  social: '社會服務',
+  culture: '文化藝術',
+  civic: '公民教育',
+  general: '綜合',
+}
+
+const statusLabels: Record<string, string> = {
+  open: '正在接受申請',
+  upcoming: '即將開放',
+  closed: '已截止',
+}
+
+const relevanceLabels: Record<string, string> = {
+  high: '高度相關',
+  medium: '中度相關',
+  low: '低度相關',
+}
 import { cn } from '@/lib/utils'
 
 interface FundingTableProps {

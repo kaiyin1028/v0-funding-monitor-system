@@ -12,7 +12,8 @@ import type {
   PaginatedResponse,
 } from '@/src/types'
 
-const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === 'true'
+// Default to mock mode unless explicitly set to 'false'
+const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS !== 'false'
 
 export interface MonitoringService {
   getLogs(params?: MonitoringLogListParams): Promise<PaginatedResponse<MonitoringLog>>

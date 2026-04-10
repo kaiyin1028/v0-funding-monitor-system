@@ -7,7 +7,8 @@ import { apiClient } from '@/src/lib/api-client'
 import { mockAuthService } from '@/src/mocks/auth.mock'
 import type { User, LoginCredentials, AuthResponse, AuthToken } from '@/src/types'
 
-const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === 'true'
+// Default to mock mode unless explicitly set to 'false'
+const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS !== 'false'
 
 export interface AuthService {
   login(credentials: LoginCredentials): Promise<AuthResponse>
