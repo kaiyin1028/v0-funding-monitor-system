@@ -3,6 +3,8 @@
  * Handles all HTTP requests with authentication, error handling, and retry logic
  */
 
+import { getToken, setToken, clearToken } from './authToken'
+
 export interface ApiError {
   code: string
   message: string
@@ -40,26 +42,21 @@ class ApiClient {
    * Get authentication token from storage
    */
   private getAuthToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem('auth_token')
+    return getToken()
   }
 
   /**
    * Set authentication token in storage
    */
-  public setAuthToken(token: string): void {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token)
-    }
+  public setAuthToken(token: string, expiresIn?: number): void {
+    setToken(token, expiresIn)
   }
 
   /**
    * Remove authentication token from storage
    */
   public removeAuthToken(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token')
-    }
+    clearToken()
   }
 
   /**

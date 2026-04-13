@@ -49,7 +49,8 @@ Hong Kong Education Funding Monitor System is a Next.js 15 application built wit
 │   │   └── use-funding.ts        # Funding data hooks
 │   │
 │   ├── lib/                      # Utilities and API client
-│   │   └── api-client.ts         # Centralized API client
+│   │   ├── api-client.ts         # Centralized API client
+│   │   └── authToken.ts          # Token management (localStorage)
 │   │
 │   ├── mocks/                    # Mock data and services
 │   │   ├── index.ts              # Mocks export
@@ -190,6 +191,40 @@ function ProgramList() {
 - Token automatically attached to requests via apiClient
 - 401 responses trigger automatic logout
 
+## Token Storage
+
+**Current Implementation:** localStorage
+
+The `src/lib/authToken.ts` module provides centralized token management:
+
+```typescript
+import { getToken, setToken, clearToken, isAuthenticated } from '@/src/lib/authToken'
+
+// Get current token
+const token = getToken()
+
+// Set token with expiry
+setToken(accessToken, expiresIn)
+
+// Clear all tokens (logout)
+clearToken()
+
+// Check if user is authenticated
+if (isAuthenticated()) { ... }
+```
+
+**Security Notes:**
+- localStorage is vulnerable to XSS attacks
+- For more sensitive systems, migrate to HttpOnly cookies
+- The current implementation is suitable for education portal use case
+- Future migration path documented in INTEGRATION_GUIDE.md
+
+**Migration to HttpOnly Cookies:**
+1. Backend sets `Set-Cookie: token=xxx; HttpOnly; Secure; SameSite=Strict`
+2. Remove localStorage calls in authToken.ts
+3. Update apiClient to use `credentials: 'include'` in fetch
+4. Backend validates cookies instead of Authorization header
+
 ## Theming
 
 Theme is defined in `app/globals.css` using CSS custom properties:
@@ -206,6 +241,40 @@ Theme is defined in `app/globals.css` using CSS custom properties:
   --background: oklch(0.12 0.01 240);
   /* ... */
 }
+```
+
+## Error Handling Strategy
+
+### HTTP Error Codes
+
+| Status | Handling |
+|--------|----------|
+| 401 | Clear token, redirect to login, show "Session expired" |
+| 403 | Show "Permission denied" error state |
+| 404 | Show "Not found" empty state |
+| 422 | Show validation errors inline |
+| 429 | Show "Too many requests, please wait" |
+| 500+ | Show "Server error" with retry button |
+
+### Error State Component
+
+```tsx
+<ErrorState
+  title="無法載入資料"
+  description={error.message}
+  onRetry={() => mutate()}
+/>
+```
+
+### Global Error Handling
+
+The apiClient dispatches custom events for global error handling:
+
+```typescript
+// Listen for auth errors
+window.addEventListener('auth:unauthorized', () => {
+  router.push('/login')
+})
 ```
 
 ## Performance Considerations

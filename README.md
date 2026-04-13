@@ -103,7 +103,8 @@ pnpm lint         # ESLint
 │   │   └── use-funding.ts        # Funding data hooks
 │   │
 │   ├── lib/                      # Utilities
-│   │   └── api-client.ts         # Centralized API client
+│   │   ├── api-client.ts         # Centralized API client
+│   │   └── authToken.ts          # Token storage (localStorage)
 │   │
 │   ├── mocks/                    # Mock data and services
 │   │   ├── data.ts               # Centralized mock data
