@@ -11,7 +11,14 @@ import {
   XCircle,
   Loader2,
 } from 'lucide-react'
-import { FundingSource, sourceCategories } from '@/lib/funding-data'
+import type { FundingSource } from '@/src/types'
+
+const sourceCategories: Record<string, string> = {
+  government: '政府部門',
+  fund: '專項基金',
+  corporate: '企業機構',
+  other: '其他來源',
+}
 import { cn } from '@/lib/utils'
 
 interface SourceMonitorProps {

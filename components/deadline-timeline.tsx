@@ -2,7 +2,19 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { FundingProgram, statusLabels, relevanceLabels } from '@/lib/funding-data'
+import type { FundingProgram } from '@/src/types'
+
+const statusLabels: Record<string, string> = {
+  open: '正在接受申請',
+  upcoming: '即將開放',
+  closed: '已截止',
+}
+
+const relevanceLabels: Record<string, string> = {
+  high: '高度相關',
+  medium: '中度相關',
+  low: '低度相關',
+}
 import { cn } from '@/lib/utils'
 import { CalendarClock, Star, ChevronRight } from 'lucide-react'
 
